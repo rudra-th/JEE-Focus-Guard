@@ -1,0 +1,79 @@
+/* JEE Focus Guard — Math Styles */
+
+.math-inline, .math-display {
+  font-family: 'Georgia', 'Times New Roman', serif;
+  font-style: italic;
+  color: inherit;
+}
+.math-display {
+  display: block;
+  text-align: center;
+  margin: 10px 0;
+  font-size: 1.08em;
+}
+
+/* Fraction */
+.mfrac {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  vertical-align: middle;
+  margin: 0 2px;
+  line-height: 1.2;
+}
+.mnum {
+  border-bottom: 1.5px solid currentColor;
+  padding: 0 3px 1px;
+  text-align: center;
+  font-size: 0.92em;
+}
+.mden {
+  padding: 1px 3px 0;
+  text-align: center;
+  font-size: 0.92em;
+}
+
+/* Superscript / subscript */
+sup.msup, sub.msub {
+  font-size: 0.72em;
+  line-height: 0;
+}
+
+/* Square root */
+.msqrt {
+  display: inline-flex;
+  align-items: center;
+  border-top: 1.5px solid currentColor;
+  padding: 0 2px;
+  margin: 0 1px;
+}
+.msqrt-idx { font-size: 0.65em; vertical-align: super; margin-right: 1px; }
+.msqrt-body { border-left: 1.5px solid currentColor; padding-left: 3px; }
+
+/* Operators, symbols */
+.mop   { font-style: normal; font-family: system-ui, sans-serif; margin: 0 1px; }
+.msym  { font-style: normal; margin: 0 1px; }
+.mbr   { font-style: normal; }
+.mtext { font-style: normal; font-family: system-ui, sans-serif; }
+.mg    { font-style: italic; }
+.msp   { display: inline-block; width: 0.2em; }
+
+/* Matrix/cases */
+.mmatrix {
+  display: inline-table;
+  vertical-align: middle;
+  border-collapse: separate;
+  border-spacing: 6px 2px;
+}
+.mtd { padding: 2px 4px; text-align: center; }
+.menv { display: inline-flex; align-items: center; vertical-align: middle; gap: 2px; }
+
+/* Limits operator */
+.mlim-op {
+  font-style: normal;
+  font-size: 1.1em;
+  vertical-align: middle;
+}
+
+/* Unknown cmd fallback */
+.mcmd { font-style: normal; color: #f87171; font-size: 0.85em; }

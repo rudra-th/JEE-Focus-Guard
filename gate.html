@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JEE Focus Guard — Unlock</title>
+  <link rel="stylesheet" href="lib/jeemath.css">
+  <style>
+    :root {
+      --bg: #080c18;
+      --surface: #111827;
+      --surface2: #1a2235;
+      --border: rgba(255,255,255,0.08);
+      --green: #10b981;
+      --green2: #059669;
+      --blue: #3b82f6;
+      --red: #ef4444;
+      --text: #f0f4ff;
+      --muted: #94a3b8;
+      --dim: #475569;
+    }
+
+    * { margin:0; padding:0; box-sizing:border-box; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 24px 16px 48px;
+    }
+
+    /* ── Header ── */
+    .header {
+      width: 100%;
+      max-width: 680px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 16px 0 24px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 28px;
+    }
+    .logo { font-size: 28px; }
+    .header h1 {
+      font-size: 20px; font-weight: 800;
+      background: linear-gradient(135deg, var(--green), #34d399);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .header p { font-size: 12px; color: var(--dim); margin-top: 2px; }
+
+    /* ── Blocked Notice ── */
+    #blockedNotice {
+      display: none;
+      width: 100%;
+      max-width: 680px;
+      background: rgba(239,68,68,0.08);
+      border: 1px solid rgba(239,68,68,0.25);
+      border-radius: 12px;
+      padding: 12px 18px;
+      margin-bottom: 20px;
+      font-size: 13.5px;
+      color: #fca5a5;
+    }
+
+    /* ── Cards ── */
+    .card {
+      width: 100%;
+      max-width: 680px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 28px;
+      margin-bottom: 16px;
+    }
+
+    /* ── Loading ── */
+    #loadingState {
+      text-align: center;
+      padding: 48px 24px;
+      color: var(--muted);
+    }
+    .spinner {
+      width: 40px; height: 40px;
+      border: 3px solid var(--border);
+      border-top-color: var(--green);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 0 auto 16px;
+    }
+    @keyframes spin { to { transform:rotate(360deg); } }
+
+    /* ── Question Card ── */
+    #questionCard { display: none; }
+
+    .q-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 18px;
+    }
+    .q-tag {
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 11.5px;
+      font-weight: 600;
+      letter-spacing: 0.3px;
+    }
+    .q-tag.subject   { background: rgba(59,130,246,0.15); color: #93c5fd; border: 1px solid rgba(59,130,246,0.3); }
+    .q-tag.chapter   { background: rgba(16,185,129,0.12); color: #6ee7b7; border: 1px solid rgba(16,185,129,0.25); }
+    .q-tag.year      { background: rgba(245,158,11,0.12); color: #fcd34d; border: 1px solid rgba(245,158,11,0.25); }
+    .q-tag.difficulty{ background: rgba(139,92,246,0.12); color: #c4b5fd; border: 1px solid rgba(139,92,246,0.25); }
+
+    #qText {
+      font-size: 16px;
+      line-height: 1.8;
+      color: var(--text);
+      margin-bottom: 24px;
+    }
+
+    /* ── Options ── */
+    #optionsList {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .option-btn {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      width: 100%;
+      padding: 14px 18px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      color: var(--text);
+      font-size: 14.5px;
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s, transform 0.1s;
+      text-align: left;
+    }
+    .option-btn:hover:not(.disabled) {
+      border-color: rgba(16,185,129,0.4);
+      background: rgba(16,185,129,0.06);
+      transform: translateX(2px);
+    }
+    .option-btn.disabled { cursor: default; pointer-events: none; }
+    .option-btn.correct  { border-color: var(--green); background: rgba(16,185,129,0.12); }
+    .option-btn.wrong    { border-color: var(--red);   background: rgba(239,68,68,0.1); }
+
+    .option-letter {
+      min-width: 30px; height: 30px;
+      background: rgba(255,255,255,0.06);
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 13px;
+      flex-shrink: 0;
+    }
+    .option-btn.correct .option-letter { background: var(--green); color: #fff; }
+    .option-btn.wrong   .option-letter { background: var(--red);   color: #fff; }
+
+    .option-text { flex: 1; line-height: 1.5; }
+
+    /* ── Result Card ── */
+    .result-card {
+      display: none;
+      width: 100%;
+      max-width: 680px;
+      border-radius: 16px;
+      padding: 22px 28px;
+      margin-bottom: 16px;
+      border: 1px solid transparent;
+    }
+    .result-card.show         { display: block; }
+    .result-card.show.success { background: rgba(16,185,129,0.1); border-color: rgba(16,185,129,0.3); }
+    .result-card.show.failure { background: rgba(239,68,68,0.08); border-color: rgba(239,68,68,0.25); }
+
+    #resultTitle   { font-size: 18px; font-weight: 800; margin-bottom: 6px; }
+    #resultMessage { font-size: 14px; color: var(--muted); line-height: 1.6; }
+
+    /* ── Solution ── */
+    .solution-box {
+      display: none;
+      width: 100%;
+      max-width: 680px;
+      background: rgba(59,130,246,0.07);
+      border: 1px solid rgba(59,130,246,0.2);
+      border-radius: 14px;
+      padding: 20px 24px;
+      margin-bottom: 16px;
+    }
+    .solution-box.show { display: block; }
+    .solution-label {
+      font-size: 11px; font-weight: 700; letter-spacing: 1px;
+      color: #60a5fa; margin-bottom: 10px; text-transform: uppercase;
+    }
+    #solutionText { font-size: 14px; line-height: 1.9; color: var(--muted); white-space: pre-line; }
+
+    /* ── Actions ── */
+    #actionButtons {
+      display: none;
+      width: 100%;
+      max-width: 680px;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .btn {
+      padding: 13px 26px;
+      border-radius: 12px;
+      font-size: 14.5px;
+      font-weight: 700;
+      cursor: pointer;
+      border: none;
+      transition: opacity 0.15s, transform 0.1s;
+    }
+    .btn:hover { opacity: 0.9; transform: translateY(-1px); }
+    .btn-unlock { background: linear-gradient(135deg, var(--green), var(--green2)); color: #fff; }
+    .btn-retry  { background: var(--surface2); color: var(--muted); border: 1px solid var(--border); }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <div class="logo">🎯</div>
+    <div>
+      <h1>JEE Focus Guard</h1>
+      <p>Solve a question · Earn <span class="unlock-duration">15 minutes</span> of browsing</p>
+    </div>
+  </div>
+
+  <div id="blockedNotice">
+    🚫 Blocked: <strong id="blockedDomain"></strong>
+  </div>
+
+  <div class="card" id="loadingState">
+    <div class="spinner"></div>
+    <p>Loading question…</p>
+  </div>
+
+  <div class="card" id="questionCard">
+    <div class="q-meta" id="qMeta"></div>
+    <div id="qText"></div>
+    <div id="optionsList"></div>
+  </div>
+
+  <div class="result-card" id="resultCard">
+    <div id="resultTitle"></div>
+    <div id="resultMessage"></div>
+  </div>
+
+  <div class="solution-box" id="solutionBox">
+    <div class="solution-label">📖 Solution</div>
+    <div id="solutionText"></div>
+  </div>
+
+  <div id="actionButtons"></div>
+
+  <script src="lib/jeemath.js"></script>
+  <script src="gate.js"></script>
+</body>
+</html>

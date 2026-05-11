@@ -1,0 +1,70 @@
+{
+  "manifest_version": 3,
+  "name": "JEE Focus Guard",
+  "version": "1.2.0",
+  "description": "Block distracting sites & YouTube Shorts. Solve a JEE MCQ to earn browsing time. Configurable 1-20 min/question.",
+  "permissions": [
+    "storage",
+    "declarativeNetRequest",
+    "declarativeNetRequestFeedback",
+    "tabs",
+    "alarms",
+    "activeTab",
+    "scripting"
+  ],
+  "host_permissions": [
+    "*://*.instagram.com/*",
+    "*://*.facebook.com/*",
+    "*://*.twitter.com/*",
+    "*://*.x.com/*",
+    "*://*.reddit.com/*",
+    "*://*.tiktok.com/*",
+    "*://*.snapchat.com/*",
+    "*://*.netflix.com/*",
+    "*://*.twitch.tv/*",
+    "*://*.discord.com/*",
+    "*://*.youtube.com/*",
+    "https://raw.githubusercontent.com/*",
+    "https://api.github.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "declarative_net_request": {
+    "rule_resources": [
+      {
+        "id": "block_rules",
+        "enabled": true,
+        "path": "rules/blocking_rules.json"
+      }
+    ]
+  },
+  "content_scripts": [
+    {
+      "matches": ["*://*.youtube.com/*"],
+      "js": ["youtube-content.js"],
+      "run_at": "document_start",
+      "all_frames": false
+    }
+  ],
+  "options_page": "options.html",
+  "web_accessible_resources": [
+    {
+      "resources": ["gate.html", "gate.js", "data/questions.json", "lib/jeemath.js", "lib/jeemath.css"],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}

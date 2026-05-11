@@ -1,0 +1,326 @@
+[
+  {
+    "id": "p1",
+    "chapter": "Kinematics",
+    "subject": "Physics",
+    "question": "A ball is thrown vertically upwards with a velocity of \\(20\\,\\text{m/s}\\) from the top of a building of height \\(25\\,\\text{m}\\). How long will it take to reach the ground? \\((g = 10\\,\\text{m/s}^2)\\)",
+    "options": ["5 s", "3 s", "2 s", "4 s"],
+    "correct": 0,
+    "solution": "Using \\(s = ut + \\frac{1}{2}at^2\\) with \\(s=-25\\), \\(u=20\\), \\(a=-10\\):\\n\\(-25 = 20t - 5t^2\\)\\n\\(5t^2 - 20t - 25 = 0\\)\\n\\(t^2 - 4t - 5 = 0\\)\\n\\((t-5)(t+1) = 0\\)\\n\\(t = 5\\,\\text{s}\\)"
+  },
+  {
+    "id": "p2",
+    "chapter": "Kinematics",
+    "subject": "Physics",
+    "question": "A particle moves along a straight line such that its displacement \\(s\\) at any time \\(t\\) is given by \\(s = t^3 - 6t^2 + 3t + 4\\). The velocity when the acceleration is zero is:",
+    "options": ["\\(-9\\,\\text{m/s}\\)", "\\(-12\\,\\text{m/s}\\)", "\\(3\\,\\text{m/s}\\)", "\\(42\\,\\text{m/s}\\)"],
+    "correct": 0,
+    "solution": "\\(v = \\frac{ds}{dt} = 3t^2 - 12t + 3\\)\\n\\(a = \\frac{dv}{dt} = 6t - 12 = 0 \\Rightarrow t = 2\\)\\n\\(v(2) = 3(4) - 12(2) + 3 = 12 - 24 + 3 = -9\\,\\text{m/s}\\)"
+  },
+  {
+    "id": "p3",
+    "chapter": "Laws of Motion",
+    "subject": "Physics",
+    "question": "A block of mass \\(m\\) is placed on a smooth inclined plane of inclination \\(\\theta\\). The net acceleration of the block is:",
+    "options": ["\\(g\\sin\\theta\\)", "\\(g\\cos\\theta\\)", "\\(g\\)", "\\(g\\tan\\theta\\)"],
+    "correct": 0,
+    "solution": "On a smooth inclined plane, the component of gravity along the plane is \\(mg\\sin\\theta\\). By Newton's second law: \\(a = g\\sin\\theta\\)."
+  },
+  {
+    "id": "p4",
+    "chapter": "Work, Energy and Power",
+    "subject": "Physics",
+    "question": "A body of mass \\(2\\,\\text{kg}\\) has a velocity of \\(4\\,\\text{m/s}\\). The kinetic energy is:",
+    "options": ["16 J", "8 J", "32 J", "4 J"],
+    "correct": 0,
+    "solution": "\\(KE = \\frac{1}{2}mv^2 = \\frac{1}{2}(2)(16) = 16\\,\\text{J}\\)"
+  },
+  {
+    "id": "p5",
+    "chapter": "Gravitation",
+    "subject": "Physics",
+    "question": "The escape velocity from Earth is \\(v_e\\). The escape velocity from a planet with 4 times Earth's mass and same radius is:",
+    "options": ["\\(2v_e\\)", "\\(4v_e\\)", "\\(v_e\\)", "\\(\\frac{v_e}{2}\\)"],
+    "correct": 0,
+    "solution": "\\(v_e = \\sqrt{\\frac{2GM}{R}}\\). With \\(M' = 4M\\): \\(v_e' = 2v_e\\)"
+  },
+  {
+    "id": "p6",
+    "chapter": "Rotational Motion",
+    "subject": "Physics",
+    "question": "The moment of inertia of a uniform circular disc about its central perpendicular axis is:",
+    "options": ["\\(\\frac{1}{2}MR^2\\)", "\\(MR^2\\)", "\\(\\frac{1}{4}MR^2\\)", "\\(\\frac{2}{5}MR^2\\)"],
+    "correct": 0,
+    "solution": "For a uniform disc: \\(I = \\frac{1}{2}MR^2\\)"
+  },
+  {
+    "id": "p7",
+    "chapter": "Oscillations",
+    "subject": "Physics",
+    "question": "The time period of a simple pendulum of length \\(l\\) is:",
+    "options": ["\\(2\\pi\\sqrt{\\frac{l}{g}}\\)", "\\(2\\pi\\sqrt{\\frac{g}{l}}\\)", "\\(\\frac{1}{2\\pi}\\sqrt{\\frac{l}{g}}\\)", "\\(\\frac{1}{2\\pi}\\sqrt{\\frac{g}{l}}\\)"],
+    "correct": 0,
+    "solution": "\\(T = 2\\pi\\sqrt{\\frac{l}{g}}\\)"
+  },
+  {
+    "id": "p8",
+    "chapter": "Thermodynamics",
+    "subject": "Physics",
+    "question": "In an adiabatic process for an ideal gas, which quantity is constant?",
+    "options": ["\\(PV^\\gamma\\)", "\\(PV\\)", "\\(\\frac{P}{V}\\)", "\\(TV^2\\)"],
+    "correct": 0,
+    "solution": "Adiabatic: \\(Q = 0\\), so \\(PV^\\gamma = \\text{const}\\)"
+  },
+  {
+    "id": "p9",
+    "chapter": "Waves",
+    "subject": "Physics",
+    "question": "Two tuning forks of 256 Hz and 260 Hz are sounded together. The beat frequency is:",
+    "options": ["4 Hz", "516 Hz", "2 Hz", "8 Hz"],
+    "correct": 0,
+    "solution": "Beat frequency = \\(|256 - 260| = 4\\) Hz"
+  },
+  {
+    "id": "p10",
+    "chapter": "Properties of Matter",
+    "subject": "Physics",
+    "question": "A wire of length \\(L\\), area \\(A\\), is stretched by force \\(F\\). If Young's modulus is \\(Y\\), the elongation is:",
+    "options": ["\\(\\frac{FL}{AY}\\)", "\\(\\frac{FAY}{L}\\)", "\\(\\frac{AY}{FL}\\)", "\\(\\frac{FL^2}{AY}\\)"],
+    "correct": 0,
+    "solution": "\\(Y = \\frac{F/A}{\\Delta L/L} \\Rightarrow \\Delta L = \\frac{FL}{AY}\\)"
+  },
+  {
+    "id": "p11",
+    "chapter": "Units and Measurements",
+    "subject": "Physics",
+    "question": "The dimensional formula of Planck's constant is:",
+    "options": ["\\([ML^2T^{-1}]\\)", "\\([MLT^{-1}]\\)", "\\([ML^2T^{-2}]\\)", "\\([ML^2T^{-3}]\\)"],
+    "correct": 0,
+    "solution": "\\(h = E/\\nu\\), so \\([h] = [ML^2T^{-2}]/[T^{-1}] = [ML^2T^{-1}]\\)"
+  },
+  {
+    "id": "p12",
+    "chapter": "Fluid Mechanics",
+    "subject": "Physics",
+    "question": "Bernoulli's theorem states that for streamline flow:",
+    "options": ["\\(P + \\frac{1}{2}\\rho v^2 + \\rho gh = \\text{const}\\)", "\\(P + \\rho v^2 + \\rho gh = \\text{const}\\)", "\\(P + \\frac{1}{2}\\rho v + \\rho gh = \\text{const}\\)", "\\(P - \\frac{1}{2}\\rho v^2 + \\rho gh = \\text{const}\\)"],
+    "correct": 0,
+    "solution": "Bernoulli's equation: \\(P + \\frac{1}{2}\\rho v^2 + \\rho gh = \\text{const}\\)"
+  },
+  {
+    "id": "c1",
+    "chapter": "Atomic Structure",
+    "subject": "Chemistry",
+    "question": "The maximum number of electrons in a sub-shell with \\(l = 3\\) is:",
+    "options": ["14", "10", "6", "2"],
+    "correct": 0,
+    "solution": "For \\(l=3\\) (f sub-shell): max electrons = \\(2(2l+1) = 14\\)"
+  },
+  {
+    "id": "c2",
+    "chapter": "Chemical Bonding",
+    "subject": "Chemistry",
+    "question": "The hybridisation of carbon in acetylene (\\(\\text{C}_2\\text{H}_2\\)) is:",
+    "options": ["sp", "sp²", "sp³", "sp³d"],
+    "correct": 0,
+    "solution": "Each C in acetylene has 2 sigma bonds, steric number = 2, so sp hybridisation."
+  },
+  {
+    "id": "c3",
+    "chapter": "Chemical Equilibrium",
+    "subject": "Chemistry",
+    "question": "For \\(\\text{N}_2 + 3\\text{H}_2 \\rightleftharpoons 2\\text{NH}_3\\), the relation between \\(K_c\\) and \\(K_p\\) is:",
+    "options": ["\\(K_c = K_p(RT)^2\\)", "\\(K_c = K_p/(RT)^2\\)", "\\(K_c = K_p \\cdot RT\\)", "\\(K_c = K_p\\)"],
+    "correct": 0,
+    "solution": "\\(\\Delta n_g = 2-4 = -2\\). \\(K_p = K_c(RT)^{-2}\\), so \\(K_c = K_p(RT)^2\\)"
+  },
+  {
+    "id": "c4",
+    "chapter": "Thermodynamics",
+    "subject": "Chemistry",
+    "question": "For a spontaneous reaction at all temperatures:",
+    "options": ["\\(\\Delta H < 0, \\Delta S > 0\\)", "\\(\\Delta H > 0, \\Delta S > 0\\)", "\\(\\Delta H < 0, \\Delta S < 0\\)", "\\(\\Delta H > 0, \\Delta S < 0\\)"],
+    "correct": 0,
+    "solution": "\\(\\Delta G = \\Delta H - T\\Delta S < 0\\) always when \\(\\Delta H < 0\\) and \\(\\Delta S > 0\\)."
+  },
+  {
+    "id": "c5",
+    "chapter": "Periodic Table",
+    "subject": "Chemistry",
+    "question": "Which has the highest first ionization energy?",
+    "options": ["Neon", "Sodium", "Fluorine", "Oxygen"],
+    "correct": 0,
+    "solution": "Noble gases have fully filled orbitals → highest IE. Neon has the highest among the options."
+  },
+  {
+    "id": "c6",
+    "chapter": "Stoichiometry",
+    "subject": "Chemistry",
+    "question": "Moles of \\(\\text{O}_2\\) needed to burn 2 mol \\(\\text{CH}_4\\): \\(\\text{CH}_4 + 2\\text{O}_2 → \\text{CO}_2 + 2\\text{H}_2\\text{O}\\)",
+    "options": ["4", "2", "1", "8"],
+    "correct": 0,
+    "solution": "1 mol CH₄ needs 2 mol O₂, so 2 mol CH₄ needs 4 mol O₂."
+  },
+  {
+    "id": "c7",
+    "chapter": "Redox Reactions",
+    "subject": "Chemistry",
+    "question": "The oxidation state of Mn in \\(\\text{KMnO}_4\\) is:",
+    "options": ["+7", "+6", "+4", "+2"],
+    "correct": 0,
+    "solution": "\\(+1 + x + 4(-2) = 0 \\Rightarrow x = +7\\)"
+  },
+  {
+    "id": "c8",
+    "chapter": "Organic Chemistry - Basics",
+    "subject": "Chemistry",
+    "question": "IUPAC name of \\(\\text{CH}_3\\text{CH}(\\text{CH}_3)\\text{CH}_2\\text{CH}_3\\) is:",
+    "options": ["2-methylbutane", "isopentane", "neopentane", "3-methylbutane"],
+    "correct": 0,
+    "solution": "Longest chain = 4C (butane), methyl at C-2 → 2-methylbutane."
+  },
+  {
+    "id": "c9",
+    "chapter": "States of Matter",
+    "subject": "Chemistry",
+    "question": "At STP, 22.4 L of an ideal gas is how many moles?",
+    "options": ["1", "2", "0.5", "22.4"],
+    "correct": 0,
+    "solution": "Avogadro's law: 1 mol ideal gas = 22.4 L at STP."
+  },
+  {
+    "id": "c10",
+    "chapter": "Solutions",
+    "subject": "Chemistry",
+    "question": "Molality of 18 g glucose (M=180) in 500 g water:",
+    "options": ["0.2 m", "0.1 m", "1 m", "2 m"],
+    "correct": 0,
+    "solution": "Moles = 18/180 = 0.1 mol. Molality = 0.1/0.5 = 0.2 m"
+  },
+  {
+    "id": "c11",
+    "chapter": "Electrochemistry",
+    "subject": "Chemistry",
+    "question": "In the electrochemical series, which has the highest reduction potential?",
+    "options": ["Fluorine", "Gold", "Platinum", "Silver"],
+    "correct": 0,
+    "solution": "F₂/F⁻ has the highest E° = +2.87 V → strongest oxidizing agent."
+  },
+  {
+    "id": "c12",
+    "chapter": "Chemical Kinetics",
+    "subject": "Chemistry",
+    "question": "The half-life of a first-order reaction is:",
+    "options": ["\\(\\frac{0.693}{k}\\)", "\\(\\frac{0.693}{k^2}\\)", "\\(\\frac{1}{k}\\)", "\\(\\frac{2.303}{k}\\)"],
+    "correct": 0,
+    "solution": "For first-order: \\(t_{1/2} = \\frac{\\ln 2}{k} = \\frac{0.693}{k}\\)"
+  },
+  {
+    "id": "m1",
+    "chapter": "Sets and Relations",
+    "subject": "Mathematics",
+    "question": "If \\(A=\\{1,2,3\\}\\) and \\(B=\\{2,3,4\\}\\), then \\(A \\cup B\\) is:",
+    "options": ["\\(\\{1,2,3,4\\}\\)", "\\(\\{2,3\\}\\)", "\\(\\{1,4\\}\\)", "\\(\\{1,2,3,4,5\\}\\)"],
+    "correct": 0,
+    "solution": "Union = all elements in A or B = \\(\\{1,2,3,4\\}\\)"
+  },
+  {
+    "id": "m2",
+    "chapter": "Trigonometry",
+    "subject": "Mathematics",
+    "question": "\\(\\sin^2\\theta + \\cos^2\\theta =\\)",
+    "options": ["1", "0", "\\(\\sin 2\\theta\\)", "\\(\\cos 2\\theta\\)"],
+    "correct": 0,
+    "solution": "Pythagorean identity: \\(\\sin^2\\theta + \\cos^2\\theta = 1\\)"
+  },
+  {
+    "id": "m3",
+    "chapter": "Complex Numbers",
+    "subject": "Mathematics",
+    "question": "The modulus of \\(z = 3 + 4i\\) is:",
+    "options": ["5", "7", "\\(\\sqrt{7}\\)", "25"],
+    "correct": 0,
+    "solution": "\\(|z| = \\sqrt{9+16} = 5\\)"
+  },
+  {
+    "id": "m4",
+    "chapter": "Quadratic Equations",
+    "subject": "Mathematics",
+    "question": "Sum of roots of \\(x^2 - 5x + 6 = 0\\) is:",
+    "options": ["5", "6", "-5", "-6"],
+    "correct": 0,
+    "solution": "By Vieta's: \\(\\alpha+\\beta = 5\\)"
+  },
+  {
+    "id": "m5",
+    "chapter": "Sequences and Series",
+    "subject": "Mathematics",
+    "question": "Sum of first \\(n\\) terms of an AP with first term \\(a\\) and common difference \\(d\\):",
+    "options": ["\\(\\frac{n}{2}[2a+(n-1)d]\\)", "\\(\\frac{n}{2}[a+d]\\)", "\\(na+nd\\)", "\\(\\frac{a(r^n-1)}{r-1}\\)"],
+    "correct": 0,
+    "solution": "\\(S_n = \\frac{n}{2}[2a+(n-1)d]\\)"
+  },
+  {
+    "id": "m6",
+    "chapter": "Binomial Theorem",
+    "subject": "Mathematics",
+    "question": "Coefficient of \\(x^3\\) in \\((1+x)^{10}\\):",
+    "options": ["120", "720", "210", "45"],
+    "correct": 0,
+    "solution": "\\(\\binom{10}{3} = 120\\)"
+  },
+  {
+    "id": "m7",
+    "chapter": "Permutations and Combinations",
+    "subject": "Mathematics",
+    "question": "Number of arrangements of letters in 'APPLE':",
+    "options": ["60", "120", "24", "12"],
+    "correct": 0,
+    "solution": "\\(5!/2! = 60\\) (P repeats twice)"
+  },
+  {
+    "id": "m8",
+    "chapter": "Straight Lines",
+    "subject": "Mathematics",
+    "question": "Slope of line through \\((2,3)\\) and \\((4,7)\\):",
+    "options": ["2", "4", "1/2", "3"],
+    "correct": 0,
+    "solution": "\\(m = (7-3)/(4-2) = 2\\)"
+  },
+  {
+    "id": "m9",
+    "chapter": "Limits and Derivatives",
+    "subject": "Mathematics",
+    "question": "\\(\\displaystyle\\lim_{x \\to 0} \\frac{\\sin x}{x} =\\)",
+    "options": ["1", "0", "\\(\\infty\\)", "-1"],
+    "correct": 0,
+    "solution": "Standard limit: \\(\\lim_{x \\to 0}\\frac{\\sin x}{x} = 1\\)"
+  },
+  {
+    "id": "m10",
+    "chapter": "Probability",
+    "subject": "Mathematics",
+    "question": "Probability of getting sum 7 with two dice:",
+    "options": ["1/6", "1/12", "1/36", "7/36"],
+    "correct": 0,
+    "solution": "6 favorable out of 36 total = 1/6"
+  },
+  {
+    "id": "m11",
+    "chapter": "Statistics",
+    "subject": "Mathematics",
+    "question": "Variance of \\(\\{2,4,4,4,5,5,7,9\\}\\):",
+    "options": ["4", "2", "5", "3"],
+    "correct": 0,
+    "solution": "Mean=5. Variance = \\(\\frac{9+1+1+1+0+0+4+16}{8} = 4\\)"
+  },
+  {
+    "id": "m12",
+    "chapter": "Matrices",
+    "subject": "Mathematics",
+    "question": "If \\(A\\) is \\(3 \\times 3\\) with \\(|A|=5\\), then \\(|3A|=\\)",
+    "options": ["135", "15", "45", "125"],
+    "correct": 0,
+    "solution": "\\(|kA| = k^n|A| = 27 \\times 5 = 135\\)"
+  }
+]
