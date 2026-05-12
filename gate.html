@@ -75,6 +75,7 @@
       border-radius: 20px;
       padding: 28px;
       margin-bottom: 16px;
+      position: relative;
     }
 
     /* ── Loading ── */
@@ -119,6 +120,22 @@
       line-height: 1.8;
       color: var(--text);
       margin-bottom: 24px;
+      white-space: pre-line;
+    }
+    .question-images, .solution-images {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px;
+      margin: -8px 0 22px;
+    }
+    .solution-images { margin: 14px 0 0; }
+    .question-images img, .solution-images img {
+      max-width: 100%;
+      max-height: 420px;
+      object-fit: contain;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: #fff;
     }
 
     /* ── Options ── */
@@ -163,7 +180,32 @@
     .option-btn.correct .option-letter { background: var(--green); color: #fff; }
     .option-btn.wrong   .option-letter { background: var(--red);   color: #fff; }
 
-    .option-text { flex: 1; line-height: 1.5; }
+    .option-text { flex: 1; line-height: 1.5; white-space: normal; overflow-wrap: anywhere; }
+
+    .integer-answer {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+      padding: 14px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+    }
+    .integer-answer.correct { border-color: var(--green); background: rgba(16,185,129,0.12); }
+    .integer-answer.wrong { border-color: var(--red); background: rgba(239,68,68,0.1); }
+    .integer-input {
+      flex: 1;
+      min-width: 180px;
+      padding: 12px 14px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,0.05);
+      color: var(--text);
+      font-size: 15px;
+      outline: none;
+    }
+    .integer-input:focus { border-color: rgba(16,185,129,0.45); }
 
     /* ── Result Card ── */
     .result-card {
@@ -247,6 +289,7 @@
     <div class="q-meta" id="qMeta"></div>
     <div id="qText"></div>
     <div id="optionsList"></div>
+    <div style="position:absolute; bottom:14px; right:18px; font-size:10px; color:var(--dim); opacity:0.45; pointer-events:none; user-select:none; letter-spacing:0.02em;">by Rudra</div>
   </div>
 
   <div class="result-card" id="resultCard">
@@ -260,6 +303,8 @@
   </div>
 
   <div id="actionButtons"></div>
+
+  <div style="text-align:center; padding: 20px 0 8px; font-size: 12px; color: var(--muted);">Made by Rudra</div>
 
   <script src="lib/jeemath.js"></script>
   <script src="gate.js"></script>

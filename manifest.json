@@ -1,7 +1,8 @@
 {
   "manifest_version": 3,
   "name": "JEE Focus Guard",
-  "version": "1.2.0",
+  "version": "1.0.0",
+  "author": "Rudra",
   "description": "Block distracting sites & YouTube Shorts. Solve a JEE MCQ to earn browsing time. Configurable 1-20 min/question.",
   "permissions": [
     "storage",
@@ -10,7 +11,8 @@
     "tabs",
     "alarms",
     "activeTab",
-    "scripting"
+    "scripting",
+    "unlimitedStorage"
   ],
   "host_permissions": [
     "*://*.instagram.com/*",
@@ -23,9 +25,7 @@
     "*://*.netflix.com/*",
     "*://*.twitch.tv/*",
     "*://*.discord.com/*",
-    "*://*.youtube.com/*",
-    "https://raw.githubusercontent.com/*",
-    "https://api.github.com/*"
+    "*://*.youtube.com/*"
   ],
   "background": {
     "service_worker": "background.js"

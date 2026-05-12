@@ -1,17 +1,89 @@
 // ============================================================
-// JEE Focus Guard — Background Service Worker v1.2
+// JEE Focus Guard — Background Service Worker v1.0
 // ============================================================
 
 const DEFAULT_UNLOCK_MINUTES = 15;
-const MAX_QUESTIONS = 2000;
+const MAX_QUESTIONS = 20000;
+const QUESTION_BANK_VERSION = "local-filtered-v6";
 
-const GITHUB_DATA_URLS = [
-  "https://raw.githubusercontent.com/HostServer001/jee_mains_pyqs_data_base/main/data/questions.json",
-  "https://raw.githubusercontent.com/HostServer001/jee_mains_pyqs_data_base/main/jee_data_base/data/questions.json",
-  "https://raw.githubusercontent.com/HostServer001/jee_mains_pyqs_data_base/main/questions.json"
-];
+function normalizeName(value, fallback = "General") {
+  return String(value || fallback).replace(/\s+/g, " ").trim() || fallback;
+}
 
-const GITHUB_API_CONTENTS = "https://api.github.com/repos/HostServer001/jee_mains_pyqs_data_base/contents/";
+function chapterKey(subject, chapter) {
+  return `${normalizeName(subject)}::${normalizeName(chapter)}`;
+}
+
+function selectionMatchesQuestion(selection, question) {
+  const subject = normalizeName(question.subject);
+  const chapter = normalizeName(question.chapter);
+  const value = normalizeName(selection, "");
+  if (!value) return false;
+  return value === chapterKey(subject, chapter) || value === chapter || value === subject;
+}
+
+function cleanQuestionText(value) {
+  return cleanCommonText(value)
+    .replace(/(?:\$\$|\\\[)?\s*\\begin\{align\*?\}\s*(?:\$\$|\\\])?\s*$/i, "")
+    .trim();
+}
+
+function cleanOptionText(value) {
+  let text = cleanCommonText(value)
+    .replace(/\\begin\{(?:align|aligned)\*?\}/gi, "")
+    .replace(/\\end\{(?:align|aligned)\*?\}/gi, "")
+    .replace(/&/g, " ")
+    .replace(/\\quad|\\qquad/gi, " ")
+    .replace(/\\\\/g, " ")
+    .replace(/^\\(?![a-zA-Z([\]])/, "")
+    .replace(/\s*\\$/, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (containsLatex(text) && !hasMathDelimiters(text)) text = `\\(${text}\\)`;
+  return text;
+}
+
+function cleanCommonText(value) {
+  return normalizeEmbeddedDisplayMath(String(value || "")
+    .replace(/\r\n?/g, "\n")
+    .replace(/\u00a0/g, " ")
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n[ \t]+/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .replace(/\b([BEIVq])\?/g, "\\($1_0\\)")
+    .replace(/\?=\?/g, "\\rightleftharpoons"))
+    .trim();
+}
+
+function normalizeEmbeddedDisplayMath(text) {
+  return text.split("\n").map(line => {
+    if (!line.includes("$$")) return line;
+    const outsideMath = line.replace(/\$\$[\s\S]*?\$\$/g, "").trim();
+    if (!outsideMath) return line;
+    return line.replace(/\$\$([\s\S]*?)\$\$/g, (_, math) => `\\(${math.trim()}\\)`);
+  }).join("\n");
+}
+
+function containsLatex(value) {
+  return /\\[a-zA-Z]+|[_^]\{|\{.*\}/.test(value);
+}
+
+function hasMathDelimiters(value) {
+  return /\$\$|\\\(|\\\[|\$[^$]+\$/.test(value);
+}
+
+function isPollutedQuestion(q) {
+  const fields = [q.question, q.solution, ...(q.options || [])].filter(Boolean).join("\n");
+  return /\.tg\s*\{|border-collapse|border-spacing|font-family\s*:\s*Arial|overflow\s*:\s*hidden|<\/?(?:table|tbody|tr|td|th)\b/i.test(fields);
+}
+
+function hasBrokenMathEnvironment(q) {
+  const fields = [q.question, q.solution, ...(q.options || [])].filter(Boolean).join("\n");
+  const begins = (fields.match(/\\begin\{/g) || []).length;
+  const ends = (fields.match(/\\end\{/g) || []).length;
+  return begins !== ends;
+}
 
 // ─── Installation ─────────────────────────────────────────────
 chrome.runtime.onInstalled.addListener(async (details) => {
@@ -30,9 +102,13 @@ chrome.runtime.onInstalled.addListener(async (details) => {
   }
   await fetchQuestionBank();
   ensureAlarm();
+  await syncBlockingRules();
 });
 
-chrome.runtime.onStartup.addListener(ensureAlarm);
+chrome.runtime.onStartup.addListener(() => {
+  ensureAlarm();
+  syncBlockingRules();
+});
 
 function ensureAlarm() {
   chrome.alarms.get("checkLock", (alarm) => {
@@ -44,9 +120,7 @@ function ensureAlarm() {
 chrome.alarms.onAlarm.addListener(async (alarm) => {
   if (alarm.name === "checkLock" || alarm.name === "reLock") {
     const { unlockedUntil } = await chrome.storage.local.get("unlockedUntil");
-    if (unlockedUntil && Date.now() > unlockedUntil) {
-      await enableBlockingRules();
-    }
+    if (unlockedUntil && Date.now() > unlockedUntil) await syncBlockingRules();
   }
 });
 
@@ -57,11 +131,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     unlockSites:        () => handleUnlock(),
     getQuestion:        () => handleGetQuestion(message),
     recordAnswer:       () => handleRecordAnswer(message),
-    refetchQuestions:   () => fetchQuestionBank().then(() => ({ success: true })),
+    refetchQuestions:   () => loadBuiltinOnly().then(() => ({ success: true })),
     loadBuiltinQuestions: () => loadBuiltinOnly().then(() => ({ success: true })),
     getStats:           () => getStats(),
     getUnlockMinutes:   () => getUnlockMinutes(),
-    setUnlockMinutes:   () => setUnlockMinutes(message.minutes)
+    setUnlockMinutes:   () => setUnlockMinutes(message.minutes),
+    resetQuestionHistory: () => resetQuestionHistory(),
+    setBlockingEnabled: () => setBlockingEnabled(message.enabled),
+    setYoutubeFilterEnabled: () => setYoutubeFilterEnabled(message.enabled)
   };
 
   const handler = handlers[message.action];
@@ -95,21 +172,35 @@ async function handleUnlock() {
 }
 
 async function handleGetQuestion(message) {
-  const { questions, selectedChapters } = await chrome.storage.local.get(["questions", "selectedChapters"]);
+  let { questions, selectedChapters, questionBankVersion, usedQuestionIds = [] } =
+    await chrome.storage.local.get(["questions", "selectedChapters", "questionBankVersion", "usedQuestionIds"]);
+  if (questionBankVersion !== QUESTION_BANK_VERSION) {
+    await loadBuiltinOnly();
+    ({ questions, selectedChapters, usedQuestionIds = [] } =
+      await chrome.storage.local.get(["questions", "selectedChapters", "usedQuestionIds"]));
+  }
   if (!questions || questions.length === 0) {
     return { error: "No questions loaded. Go to Options to fetch the database." };
   }
 
   let pool = questions;
   if (selectedChapters && selectedChapters.length > 0) {
-    const filtered = questions.filter(q =>
-      selectedChapters.includes(q.chapter) || selectedChapters.includes(q.subject)
-    );
+    const filtered = questions.filter(q => selectedChapters.some(selection => selectionMatchesQuestion(selection, q)));
     if (filtered.length > 0) pool = filtered;
   }
 
-  const idx = Math.floor(Math.random() * pool.length);
-  return { question: pool[idx] };
+  const used = new Set(usedQuestionIds);
+  const unusedPool = pool.filter(q => !used.has(q.id));
+  if (unusedPool.length === 0) {
+    return {
+      error: "All questions in the current selection have been used. Reset question history or choose a different chapter filter."
+    };
+  }
+
+  const idx = Math.floor(Math.random() * unusedPool.length);
+  const question = unusedPool[idx];
+  await chrome.storage.local.set({ usedQuestionIds: [...used, question.id] });
+  return { question };
 }
 
 async function handleRecordAnswer(message) {
@@ -139,10 +230,46 @@ async function setUnlockMinutes(minutes) {
   return { success: true, minutes: mins };
 }
 
+async function setBlockingEnabled(enabled) {
+  await chrome.storage.local.set({ blockingEnabled: enabled !== false });
+  await syncBlockingRules();
+  return { success: true, enabled: enabled !== false };
+}
+
+async function setYoutubeFilterEnabled(enabled) {
+  await chrome.storage.local.set({ youtubeFilterEnabled: enabled !== false });
+  await syncBlockingRules();
+  return { success: true, enabled: enabled !== false };
+}
+
+async function resetQuestionHistory() {
+  await chrome.storage.local.set({ usedQuestionIds: [] });
+  return { success: true };
+}
+
 // ─── Blocking Rules ────────────────────────────────────────────
-async function enableBlockingRules() {
+async function syncBlockingRules() {
+  const { blockingEnabled, youtubeFilterEnabled, unlockedUntil } =
+    await chrome.storage.local.get(["blockingEnabled", "youtubeFilterEnabled", "unlockedUntil"]);
+
+  if (blockingEnabled === false || (unlockedUntil && Date.now() < unlockedUntil)) {
+    await disableBlockingRules();
+    return;
+  }
+
   try {
     await chrome.declarativeNetRequest.updateEnabledRulesets({ enableRulesetIds: ["block_rules"] });
+    await chrome.declarativeNetRequest.updateStaticRules({
+      rulesetId: "block_rules",
+      enableRuleIds: youtubeFilterEnabled === false ? [] : [11],
+      disableRuleIds: youtubeFilterEnabled === false ? [11] : []
+    });
+  } catch (e) { /* already synced or unsupported */ }
+}
+
+async function enableBlockingRules() {
+  try {
+    await syncBlockingRules();
   } catch (e) { /* already enabled */ }
 }
 
@@ -154,27 +281,6 @@ async function disableBlockingRules() {
 
 // ─── Question Bank Fetch ───────────────────────────────────────
 async function fetchQuestionBank() {
-  for (const url of GITHUB_DATA_URLS) {
-    try {
-      const resp = await fetch(url, { cache: "no-cache" });
-      if (!resp.ok) continue;
-      const data = await resp.json();
-      if (Array.isArray(data) && data.length > 0) {
-        await storeQuestions(normalizeQuestions(data).slice(0, MAX_QUESTIONS));
-        return;
-      }
-    } catch (e) { /* try next */ }
-  }
-
-  // API crawl fallback
-  try {
-    const questions = await crawlRepoForJSON("");
-    if (questions.length > 0) {
-      await storeQuestions(questions.slice(0, MAX_QUESTIONS));
-      return;
-    }
-  } catch (e) { /* fall through */ }
-
   await loadBuiltinOnly();
 }
 
@@ -184,58 +290,56 @@ async function loadBuiltinOnly() {
     const data = await resp.json();
     await storeQuestions(normalizeQuestions(Array.isArray(data) ? data : []));
   } catch (e) {
-    await storeQuestions(getHardcodedQuestions());
+    await storeQuestions(normalizeQuestions(getHardcodedQuestions()).map(shuffleMcqOptions));
   }
-}
-
-async function crawlRepoForJSON(path) {
-  const resp = await fetch(GITHUB_API_CONTENTS + path, {
-    headers: { "Accept": "application/vnd.github.v3+json" }
-  });
-  if (!resp.ok) return [];
-
-  const items = await resp.json();
-  let all = [];
-
-  for (const item of items) {
-    if (item.type === "file" && item.name.endsWith(".json") && item.size < 10_000_000) {
-      try {
-        const fileResp = await fetch(item.download_url);
-        const fileData = await fileResp.json();
-        if (Array.isArray(fileData)) {
-          all = all.concat(normalizeQuestions(fileData.filter(q => q.question || q.text || q.problem)));
-        } else if (typeof fileData === "object") {
-          for (const key of Object.keys(fileData)) {
-            if (Array.isArray(fileData[key])) {
-              all = all.concat(normalizeQuestions(fileData[key].filter(q => q.question || q.text || q.problem), key));
-            }
-          }
-        }
-      } catch (e) { /* skip malformed */ }
-    } else if (item.type === "dir" && !item.name.startsWith(".")) {
-      all = all.concat(await crawlRepoForJSON(item.path));
-    }
-  }
-  return all;
 }
 
 function normalizeQuestions(rawQuestions, defaultChapter = "General") {
-  return rawQuestions.map((q, i) => ({
-    id: q.id || `q_${Date.now()}_${i}`,
-    question: q.question || q.text || q.problem || q.Question || "",
-    options: q.options || q.Options || q.choices || [
+  return rawQuestions.map((q, i) => {
+    const rawOptions = q.options || q.Options || q.choices || [
       q.option_a || q.optionA || q.a || "(A)",
       q.option_b || q.optionB || q.b || "(B)",
       q.option_c || q.optionC || q.c || "(C)",
       q.option_d || q.optionD || q.d || "(D)"
-    ],
-    correct: q.correct ?? q.answer ?? q.correct_answer ?? q.Answer ?? q.correctAnswer ?? 0,
-    solution: q.solution || q.explanation || q.Solution || q.Explanation || "",
-    chapter: q.chapter || q.Chapter || q.topic || q.Topic || defaultChapter,
-    subject: q.subject || q.Subject || detectSubject(q.chapter || q.topic || defaultChapter),
-    year: q.year || q.Year || "",
-    difficulty: q.difficulty || "Medium"
-  })).filter(q => q.question && Array.isArray(q.options) && q.options.length >= 2);
+    ];
+    const options = Array.isArray(rawOptions)
+      ? rawOptions.map(cleanOptionText).filter(Boolean)
+      : [];
+    const chapter = normalizeName(q.chapter || q.Chapter || q.topic || q.Topic || defaultChapter);
+    const subject = normalizeName(q.subject || q.Subject || detectSubject(chapter));
+    const type = q.type || (q.correctAnswer !== undefined ? "integer" : "mcq");
+
+    return {
+      ...q,
+      id: q.id || `q_${Date.now()}_${i}`,
+      type,
+      question: cleanQuestionText(q.question || q.text || q.problem || q.Question || ""),
+      options,
+      correct: q.correct ?? q.answer ?? q.correct_answer ?? q.Answer ?? q.correctAnswer ?? 0,
+      correctAnswer: q.correctAnswer ?? q.numericalAnswer ?? q.integerAnswer,
+      solution: cleanCommonText(q.solution || q.explanation || q.Solution || q.Explanation || ""),
+      chapter,
+      subject,
+      year: q.year || q.Year || "",
+      difficulty: q.difficulty || "Medium"
+    };
+  }).filter(q =>
+    q.question &&
+    !isPollutedQuestion(q) &&
+    !hasBrokenMathEnvironment(q) &&
+    ((q.type === "integer" && q.correctAnswer !== undefined) || (Array.isArray(q.options) && q.options.length >= 2))
+  ).slice(0, MAX_QUESTIONS);
+}
+
+function shuffleMcqOptions(q) {
+  if (q.type === "integer" || !Array.isArray(q.options) || q.options.length < 2) return q;
+  const shift = Math.max(1, Math.abs(String(q.id || q.question).split("").reduce((sum, ch) => sum + ch.charCodeAt(0), 0)) % q.options.length);
+  const oldCorrect = typeof q.correct === "number" ? q.correct : 0;
+  return {
+    ...q,
+    options: q.options.map((_, i) => q.options[(i + shift) % q.options.length]),
+    correct: (oldCorrect - shift + q.options.length) % q.options.length
+  };
 }
 
 function detectSubject(chapter) {
@@ -251,11 +355,20 @@ function detectSubject(chapter) {
 }
 
 async function storeQuestions(questions) {
-  const chapterSet = new Set(questions.map(q => q.chapter).filter(Boolean));
+  const chapterMap = new Map();
+  questions.forEach(q => {
+    if (q.chapter) chapterMap.set(chapterKey(q.subject, q.chapter), {
+      subject: normalizeName(q.subject),
+      chapter: normalizeName(q.chapter)
+    });
+  });
   await chrome.storage.local.set({
     questions,
-    availableChapters: [...chapterSet].sort(),
+    availableChapters: [...chapterMap.values()].sort((a, b) =>
+      a.subject.localeCompare(b.subject) || a.chapter.localeCompare(b.chapter)
+    ),
     questionBankReady: true,
+    questionBankVersion: QUESTION_BANK_VERSION,
     questionCount: questions.length,
     lastFetched: Date.now()
   });

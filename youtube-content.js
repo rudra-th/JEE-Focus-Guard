@@ -1,172 +1,260 @@
 // ============================================================
-// JEE Focus Guard — YouTube Content Script v1.2
-// Blocks non-educational videos AND YouTube Shorts
+// JEE Focus Guard — YouTube Content Script v1.3
+// Blocks non-educational videos, YouTube Shorts (SPA + direct),
+// and YouTube homepage/feed browsing.
 // ============================================================
 
 (function () {
   "use strict";
 
-  const EDUCATIONAL_KEYWORDS = [
-    "jee", "neet", "iit", "physics", "chemistry", "mathematics", "maths", "math",
-    "calculus", "lecture", "tutorial", "class 11", "class 12", "ncert",
-    "engineering", "medical", "education", "learn", "study", "concept",
-    "organic chemistry", "mechanics", "thermodynamics", "algebra",
-    "programming", "coding", "computer science", "biology", "science",
-    "ted-ed", "khan academy", "unacademy", "byju", "vedantu",
+  // ─── Educational allow-lists ───────────────────────────────
+  // Only STRONG keywords (exam/subject specific) count.
+  // Generic words like "science" or "explained" alone are NOT enough.
+  const STRONG_KEYWORDS = [
+    "jee", "neet", "iit", "ncert", "cbse",
+    "jee main", "jee advanced", "bitsat", "olympiad",
+    "class 11", "class 12", "class11", "class12", "11th", "12th",
+    "board exam", "lecture", "tutorial", "derivation", "proof",
+    "khan academy", "unacademy", "byju", "vedantu",
     "physics wallah", "pw", "mit opencourseware", "crash course",
-    "explained", "derivation", "proof", "formula", "theorem", "equation",
-    "cbse", "jee main", "jee advanced", "bitsat", "olympiad", "gate",
-    "class12", "class11", "12th", "11th", "board exam"
+    "etoos", "allen", "motion iit", "aakash",
+    "organic chemistry tutor", "professor leonard",
+    "3blue1brown", "blackpenredpen", "mathologer",
+    "neso academy", "gate smashers", "apna college",
+    "physics", "chemistry", "mathematics", "maths", "biology",
+    "algebra", "coordinate geometry", "vectors", "matrices",
+    "determinants", "complex numbers", "quadratic equations",
+    "sequence and series", "permutation", "combination",
+    "limits", "continuity", "differential equations",
+    "straight lines", "circles", "conic sections", "3d geometry",
+    "mole concept", "atomic structure", "chemical bonding",
+    "periodic table", "equilibrium", "redox", "solutions",
+    "solid state", "metallurgy", "coordination compounds",
+    "hydrocarbons", "amines", "biomolecules",
+    "laws of motion", "work energy power", "rotational motion",
+    "gravitation", "waves", "oscillations", "current electricity",
+    "magnetism", "electromagnetic induction", "modern physics",
+    "semiconductors", "ray optics", "wave optics",
+    "calculus", "thermodynamics", "electrostatics",
+    "kinematics", "mechanics lecture", "optics lecture",
+    "trigonometry lecture", "integration lecture",
+    "differentiation", "binomial theorem", "probability lecture",
+    "stoichiometry", "electrochemistry", "chemical kinetics"
   ];
 
   const EDUCATIONAL_CHANNELS = new Set([
     "physics wallah", "pw", "khan academy", "3blue1brown", "veritasium",
-    "vsauce", "ted-ed", "mit opencourseware", "unacademy", "byju",
+    "vsauce", "ted-ed", "mit opencourseware", "unacademy", "byju's",
     "vedantu", "etoos india", "motion education", "allen career",
-    "mathologer", "blackpenredpen", "professor leonard", "organic chemistry tutor",
-    "crash course", "kurzgesagt", "minutephysics", "smarter every day",
-    "numberphile", "computerphile", "neso academy", "gate smashers",
-    "apna college", "code with harry", "the organic chemistry tutor",
-    "aakash byjus", "motion iit jee", "pw english medium"
+    "mathologer", "blackpenredpen", "professor leonard",
+    "the organic chemistry tutor", "crash course", "kurzgesagt",
+    "minutephysics", "smarter every day", "numberphile", "computerphile",
+    "neso academy", "gate smashers", "apna college", "code with harry",
+    "aakash byjus", "motion iit jee", "pw english medium",
+    "pw - pathshala", "pw foundation", "science and fun",
+    "lectures by walter lewin", "mit ocw", "nptel"
   ]);
 
-  let overlayActive = false;
-  let lastBlockedUrl = "";
-  let navTimer = null;
-  let expiryTimer = null;   // fires overlay exactly when unlock window ends
+  // ─── State ─────────────────────────────────────────────────
+  let overlayActive   = false;
+  let lastBlockedUrl  = "";
+  let navTimer        = null;
+  let expiryTimer     = null;
+  let shortsObserver  = null;
+  let shortsObserverTarget = null;
+  let shortsTimer     = null;
+  let overlayType     = "";
+  let bodyReadyPromise = null;
+  let lastUrl = location.href;
 
-  // ─── Schedule overlay to fire exactly when unlock expires ──
+  // ─── Expiry timer: show overlay exactly when unlock ends ───
   function scheduleExpiryCheck(unlockedUntil) {
     clearTimeout(expiryTimer);
     if (!unlockedUntil) return;
     const delay = unlockedUntil - Date.now();
-    if (delay <= 0) return;   // already expired
+    if (delay <= 0) return;
     expiryTimer = setTimeout(() => {
-      // Re-run the full page check; isUnlocked() will now be false
-      overlayActive = false;  // force re-evaluation
+      overlayActive  = false;
+      lastBlockedUrl = "";
+      startShortsObserver();
       checkCurrentPage();
-    }, delay);
+    }, delay + 50);
   }
 
-  // Listen for storage changes so we schedule the timer the moment
-  // the user solves a question (unlockedUntil gets written by background.js)
+  // React the moment background.js writes a new unlockedUntil
   chrome.storage.onChanged.addListener((changes) => {
+    if (!changes.unlockedUntil && !changes.blockingEnabled && !changes.youtubeFilterEnabled) return;
     if (changes.unlockedUntil) {
       const newVal = changes.unlockedUntil.newValue;
       if (newVal && newVal > Date.now()) {
         scheduleExpiryCheck(newVal);
-        // If an overlay is currently showing (e.g. user just solved), remove it
         removeOverlay();
+        stopShortsObserver();
       } else {
         clearTimeout(expiryTimer);
+        overlayActive  = false;
+        lastBlockedUrl = "";
+        startShortsObserver();
+        checkCurrentPage();
       }
+      return;
     }
+
+    if (changes.blockingEnabled?.newValue === false || changes.youtubeFilterEnabled?.newValue === false) {
+      clearTimeout(expiryTimer);
+      removeOverlay();
+      stopShortsObserver();
+      return;
+    }
+
+    overlayActive  = false;
+    lastBlockedUrl = "";
+    startShortsObserver();
+    checkCurrentPage();
   });
 
-  // ─── Quick Shorts guard — runs at document_start ───────────
-  // The declarativeNetRequest rule handles direct navigation,
-  // but SPA transitions (clicking a Shorts link on YouTube) need this.
-  function blockIfShorts() {
-    if (window.location.pathname.startsWith("/shorts")) {
-      getSettings().then(s => {
-        if (s.youtubeFilterEnabled === false) return;
-        if (isUnlocked(s)) return;
-        showBlockOverlay("shorts");
-      });
-    }
-  }
-
-  // ─── Main check ────────────────────────────────────────────
+  // ─── Main page check ───────────────────────────────────────
   async function checkCurrentPage() {
     const path = window.location.pathname;
     const url  = window.location.href;
 
-    // Block Shorts immediately
+    const s = await getSettings();
+    if (s.youtubeFilterEnabled === false) { removeOverlay(); return; }
+    if (isBrowsingAllowed(s))             { removeOverlay(); return; }
+
+    // 1. Shorts
     if (path.startsWith("/shorts")) {
-      const s = await getSettings();
-      if (s.youtubeFilterEnabled === false || isUnlocked(s)) { removeOverlay(); return; }
       showBlockOverlay("shorts");
       return;
     }
 
-    // Only inspect /watch pages
-    if (!path.includes("/watch")) { removeOverlay(); return; }
+    // 2. Non-educational /watch video
+    if (path.startsWith("/watch")) {
+      if (url === lastBlockedUrl && overlayActive) return;
+      removeOverlay();
 
-    // Don't re-check if we already blocked this exact URL
-    if (url === lastBlockedUrl && overlayActive) return;
+      await waitForTitle(6000);
+
+      // Re-check lock in case user solved while we were waiting
+      const s2 = await getSettings();
+      if (isBrowsingAllowed(s2)) return;
+
+      if (!isPageEducational()) {
+        lastBlockedUrl = url;
+        showBlockOverlay("video");
+      }
+      return;
+    }
+
+    // 3. Homepage / feed / trending / channel pages — all blocked.
+    //    /results (search) is the only non-watch path we allow so
+    //    the user can search for and navigate to educational videos.
+    if (!path.startsWith("/results")) {
+      showBlockOverlay("feed");
+      return;
+    }
 
     removeOverlay();
+  }
 
-    const s = await getSettings();
-    if (s.youtubeFilterEnabled === false || isUnlocked(s)) return;
+  // ─── Shorts SPA modal detection ────────────────────────────
+  // When clicking a Shorts link from within YouTube, YouTube sometimes
+  // renders a <ytd-shorts> element WITHOUT a URL path change.
+  // We watch the DOM directly for that element.
+  function startShortsObserver() {
+    if (shortsObserver) return;
+    const target = document.querySelector("ytd-page-manager") || document.querySelector("ytd-app") || document.body;
+    if (!target) {
+      waitForBody().then(startShortsObserver);
+      return;
+    }
+    shortsObserverTarget = target;
 
-    // Wait for title to render
-    await waitForTitle(5000);
-    await sleep(600);
+    const checkForShorts = async () => {
+      shortsTimer = null;
+      if (overlayActive || window.location.pathname.startsWith("/shorts")) return;
 
-    if (isPageEducational()) return;
+      const hasShortsRenderer = !!(
+        document.querySelector("ytd-shorts") ||
+        document.querySelector("ytd-reel-video-renderer") ||
+        document.querySelector("#shorts-container")
+      );
+      if (!hasShortsRenderer) return;
 
-    lastBlockedUrl = url;
-    showBlockOverlay("video");
+      const s = await getSettings();
+      if (s.youtubeFilterEnabled === false || isBrowsingAllowed(s)) return;
+      showBlockOverlay("shorts");
+    };
+
+    shortsObserver = new MutationObserver(() => {
+      if (shortsTimer || overlayActive) return;
+      const betterTarget = document.querySelector("ytd-page-manager") || document.querySelector("ytd-app");
+      if (betterTarget && betterTarget !== shortsObserverTarget) {
+        stopShortsObserver();
+        startShortsObserver();
+        return;
+      }
+      shortsTimer = setTimeout(checkForShorts, 250);
+    });
+    shortsObserver.observe(target, { childList: true });
+    checkForShorts();
+  }
+
+  function stopShortsObserver() {
+    if (shortsTimer) {
+      clearTimeout(shortsTimer);
+      shortsTimer = null;
+    }
+    if (shortsObserver) {
+      shortsObserver.disconnect();
+      shortsObserver = null;
+      shortsObserverTarget = null;
+    }
   }
 
   // ─── Educational Detection ─────────────────────────────────
   function isPageEducational() {
-    const title   = getVideoTitle();
-    const channel = getChannelName();
-    const desc    = getDescription().slice(0, 600);
+    const title   = getVideoTitle().toLowerCase();
+    const channel = getChannelName().toLowerCase();
 
-    if (channel) {
-      const cl = channel.toLowerCase();
-      if ([...EDUCATIONAL_CHANNELS].some(ec => cl.includes(ec))) return true;
-    }
+    // Known educational channel → always allow
+    if (channel && [...EDUCATIONAL_CHANNELS].some(ec => channel.includes(ec))) return true;
 
-    const combined = `${title} ${channel} ${desc}`.toLowerCase();
-    if (EDUCATIONAL_KEYWORDS.some(kw => combined.includes(kw))) return true;
+    // Strong keyword in title OR channel name → allow
+    if (STRONG_KEYWORDS.some(kw => title.includes(kw))) return true;
 
-    const cat = getCategory().toLowerCase();
-    if (cat.includes("education") || cat.includes("science") || cat.includes("technology")) return true;
+    // YouTube's own structured-data genre — exact "Education" only
+    if (getCategory().toLowerCase() === "education") return true;
 
     return false;
   }
 
   // ─── DOM Extractors ────────────────────────────────────────
   function getVideoTitle() {
-    const sel = [
+    const selectors = [
       "h1.ytd-watch-metadata yt-formatted-string",
       "#title h1 yt-formatted-string",
       "h1.title yt-formatted-string",
-      "#container h1 yt-formatted-string"
+      "#container h1 yt-formatted-string",
+      "ytd-watch-metadata h1 yt-formatted-string"
     ];
-    for (const s of sel) {
+    for (const s of selectors) {
       const el = document.querySelector(s);
       if (el?.textContent?.trim()) return el.textContent.trim();
     }
-    return document.title.replace(" - YouTube", "").trim();
+    return document.title.replace(/ - YouTube$/, "").trim();
   }
 
   function getChannelName() {
-    const sel = [
+    const selectors = [
       "#channel-name yt-formatted-string a",
       "ytd-channel-name yt-formatted-string a",
       ".ytd-channel-name a",
       "#owner-name a",
-      "#upload-info ytd-channel-name a"
+      "#upload-info ytd-channel-name a",
+      "ytd-video-owner-renderer #channel-name a"
     ];
-    for (const s of sel) {
-      const el = document.querySelector(s);
-      if (el?.textContent?.trim()) return el.textContent.trim();
-    }
-    return "";
-  }
-
-  function getDescription() {
-    const sel = [
-      "#description-inline-expander yt-formatted-string",
-      "#description yt-formatted-string",
-      "ytd-text-inline-expander yt-formatted-string"
-    ];
-    for (const s of sel) {
+    for (const s of selectors) {
       const el = document.querySelector(s);
       if (el?.textContent?.trim()) return el.textContent.trim();
     }
@@ -175,24 +263,45 @@
 
   function getCategory() {
     for (const el of document.querySelectorAll('script[type="application/ld+json"]')) {
-      try { const d = JSON.parse(el.textContent); if (d.genre) return d.genre; } catch (e) {}
+      try {
+        const d = JSON.parse(el.textContent);
+        if (d.genre) return d.genre;
+      } catch (e) {}
     }
     return document.querySelector('meta[itemprop="genre"]')?.content || "";
   }
 
-  // ─── Overlay ────────────────────────────────────────────────
-  function showBlockOverlay(type) {
-    if (overlayActive) return;
-    overlayActive = true;
+  // ─── Overlay ───────────────────────────────────────────────
+  async function showBlockOverlay(type) {
+    if (overlayActive && overlayType === type && document.getElementById("fg-overlay")) return;
+    await waitForBody();
+    if (overlayActive && overlayType === type && document.getElementById("fg-overlay")) return;
 
-    // Pause & suppress video
+    document.getElementById("fg-overlay")?.remove();
+    overlayActive = true;
+    overlayType = type;
     pauseAllVideos();
 
-    const isShorts = type === "shorts";
-    const title = isShorts ? "🚫 YouTube Shorts Blocked" : "📚 Non-Educational Video";
-    const body  = isShorts
-      ? "YouTube Shorts are blocked to keep you focused on your JEE prep."
-      : "This video doesn't appear to be educational content.";
+    const cfg = {
+      shorts: {
+        icon:  "🚫",
+        title: "YouTube Shorts Blocked",
+        body:  "Shorts are blocked to keep you focused on JEE prep.",
+        showSearch: false,
+      },
+      feed: {
+        icon:  "📵",
+        title: "YouTube Feed Blocked",
+        body:  "The YouTube feed is blocked. Search for an educational video below, or solve a question to unlock free browsing.",
+        showSearch: true,
+      },
+      video: {
+        icon:  "📚",
+        title: "Non-Educational Video",
+        body:  "This video doesn't appear to be educational content.",
+        showSearch: false,
+      },
+    }[type] || { icon: "🎯", title: "Blocked", body: "Solve a JEE question to continue.", showSearch: false };
 
     const overlay = document.createElement("div");
     overlay.id = "fg-overlay";
@@ -206,7 +315,6 @@
       backdrop-filter:blur(12px);
     `;
 
-    // We'll fill unlock-time dynamically
     overlay.innerHTML = `
       <div style="
         text-align:center;max-width:500px;padding:44px 36px;
@@ -220,16 +328,34 @@
           position:absolute;top:0;left:0;right:0;height:3px;
           background:linear-gradient(90deg,#10b981,#3b82f6,#8b5cf6);
         "></div>
-        <div style="font-size:56px;margin-bottom:16px;">🎯</div>
+        <div style="font-size:56px;margin-bottom:16px;">${cfg.icon}</div>
         <h2 style="
           font-size:22px;font-weight:900;margin-bottom:10px;
           background:linear-gradient(135deg,#10b981,#34d399);
           -webkit-background-clip:text;-webkit-text-fill-color:transparent;
-        ">${title}</h2>
-        <p style="color:#94a3b8;font-size:14px;line-height:1.7;margin-bottom:6px;">${body}</p>
-        <p id="fg-unlock-info" style="color:#64748b;font-size:13px;margin-bottom:28px;">
+        ">${cfg.title}</h2>
+        <p style="color:#94a3b8;font-size:14px;line-height:1.7;margin-bottom:6px;">${cfg.body}</p>
+        <p id="fg-unlock-info" style="color:#64748b;font-size:13px;margin-bottom:${cfg.showSearch ? "16px" : "28px"};">
           Solve a JEE question to unlock <strong style="color:#10b981;">15 minutes</strong> of browsing.
         </p>
+        ${cfg.showSearch ? `
+        <div style="display:flex;gap:8px;margin-bottom:24px;">
+          <input id="fg-search" type="text" placeholder="Search educational videos…" style="
+            flex:1;padding:11px 16px;
+            background:rgba(255,255,255,0.07);
+            border:1px solid rgba(16,185,129,0.35);
+            border-radius:10px;
+            color:#f0f4ff;font-size:14px;outline:none;
+            font-family:'Segoe UI',system-ui,sans-serif;
+          "/>
+          <button id="fg-search-btn" style="
+            padding:11px 18px;
+            background:linear-gradient(135deg,#3b82f6,#2563eb);
+            color:#fff;border:none;border-radius:10px;
+            font-size:14px;font-weight:700;cursor:pointer;
+            white-space:nowrap;
+          ">🔍 Search</button>
+        </div>` : ""}
         <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
           <button id="fg-solve" style="
             padding:13px 28px;
@@ -252,27 +378,42 @@
 
     document.body.appendChild(overlay);
 
-    // Fill in the actual configured time
     chrome.storage.local.get("unlockMinutes", ({ unlockMinutes }) => {
       const mins = unlockMinutes || 15;
       const info = document.getElementById("fg-unlock-info");
       if (info) info.innerHTML = `Solve a JEE question to unlock <strong style="color:#10b981;">${mins} minute${mins !== 1 ? "s" : ""}</strong> of browsing.`;
     });
 
+    if (cfg.showSearch) {
+      const doSearch = () => {
+        const q = document.getElementById("fg-search")?.value?.trim();
+        if (q) window.location.href = `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`;
+      };
+      overlay.querySelector("#fg-search-btn").onclick = doSearch;
+      overlay.querySelector("#fg-search").addEventListener("keydown", e => {
+        if (e.key === "Enter") doSearch();
+      });
+      // Auto-focus the search box
+      setTimeout(() => document.getElementById("fg-search")?.focus(), 50);
+    }
+
     overlay.querySelector("#fg-solve").onclick = () => {
-      window.location.href = chrome.runtime.getURL("gate.html?source=youtube");
+      const params = new URLSearchParams({
+        source: type === "shorts" ? "youtube-shorts" : "youtube",
+        returnUrl: window.location.href
+      });
+      window.location.href = chrome.runtime.getURL(`gate.html?${params.toString()}`);
     };
     overlay.querySelector("#fg-back").onclick = () => window.history.back();
     overlay.querySelector("#fg-check").onclick = async () => {
       const s = await getSettings();
-      if (isUnlocked(s)) removeOverlay();
+      if (isBrowsingAllowed(s)) { removeOverlay(); }
       else {
         const el = document.getElementById("fg-check");
         if (el) el.textContent = "Still locked — solve a question!";
       }
     };
 
-    // Keep suppressing play
     document.addEventListener("play", pauseAllVideos, true);
   }
 
@@ -280,6 +421,7 @@
     const el = document.getElementById("fg-overlay");
     if (el) el.remove();
     overlayActive = false;
+    overlayType = "";
     document.removeEventListener("play", pauseAllVideos, true);
   }
 
@@ -289,61 +431,118 @@
 
   // ─── Helpers ───────────────────────────────────────────────
   function getSettings() {
-    return new Promise(r => chrome.storage.local.get(["youtubeFilterEnabled", "unlockedUntil"], r));
+    return new Promise(r => chrome.storage.local.get(["blockingEnabled", "youtubeFilterEnabled", "unlockedUntil"], r));
   }
 
   function isUnlocked(s) {
     return s.unlockedUntil && Date.now() < s.unlockedUntil;
   }
 
+  function isBrowsingAllowed(s) {
+    return s.blockingEnabled === false || isUnlocked(s);
+  }
+
   function waitForTitle(timeout) {
     const selectors = [
       "h1.ytd-watch-metadata yt-formatted-string",
       "#title h1 yt-formatted-string",
-      "h1.title yt-formatted-string"
+      "h1.title yt-formatted-string",
+      "ytd-watch-metadata h1 yt-formatted-string"
     ];
     return new Promise(resolve => {
+      let done = false;
+      let bodyWatcher = null;
+      let timer = null;
+
       const find = () => selectors.some(s => document.querySelector(s)?.textContent?.trim());
       if (find()) { resolve(); return; }
-      const obs = new MutationObserver(() => { if (find()) { obs.disconnect(); resolve(); } });
-      obs.observe(document.body, { childList: true, subtree: true });
-      setTimeout(() => { obs.disconnect(); resolve(); }, timeout);
+
+      const finish = () => {
+        if (done) return;
+        done = true;
+        clearTimeout(timer);
+        obs.disconnect();
+        if (bodyWatcher) bodyWatcher.disconnect();
+        resolve();
+      };
+
+      const obs = new MutationObserver(() => { if (find()) finish(); });
+
+      const attachObs = () => obs.observe(document.body, { childList: true, subtree: true });
+
+      if (document.body) {
+        attachObs();
+      } else {
+        // document_start — body not yet available
+        bodyWatcher = new MutationObserver(() => {
+          if (document.body) {
+            bodyWatcher.disconnect();
+            bodyWatcher = null;
+            attachObs();
+            if (find()) finish();
+          }
+        });
+        bodyWatcher.observe(document.documentElement, { childList: true });
+      }
+
+      timer = setTimeout(finish, timeout);
     });
   }
 
-  function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+  function waitForBody() {
+    if (document.body) return Promise.resolve();
+    if (bodyReadyPromise) return bodyReadyPromise;
 
-  // ─── SPA Navigation (YouTube is a Single Page App) ─────────
-  function onNavigate() {
-    overlayActive = false;
-    clearTimeout(navTimer);
-    navTimer = setTimeout(checkCurrentPage, 1200);
+    bodyReadyPromise = new Promise(resolve => {
+      const obs = new MutationObserver(() => {
+        if (!document.body) return;
+        obs.disconnect();
+        resolve();
+      });
+      obs.observe(document.documentElement, { childList: true });
+    });
+
+    return bodyReadyPromise;
   }
 
-  // Intercept pushState / replaceState
+  // ─── SPA Navigation ────────────────────────────────────────
+  function onNavigate() {
+    lastUrl = location.href;
+    overlayActive = false;
+    overlayType = "";
+    clearTimeout(navTimer);
+    const delay = window.location.pathname.startsWith("/shorts") ? 100 : 800;
+    navTimer = setTimeout(checkCurrentPage, delay);
+  }
+
   for (const method of ["pushState", "replaceState"]) {
     const orig = history[method].bind(history);
-    history[method] = function (...args) {
-      orig(...args);
-      onNavigate();
-    };
+    history[method] = function (...args) { orig(...args); onNavigate(); };
   }
 
   window.addEventListener("popstate", onNavigate);
 
-  // Also watch DOM for URL changes (YouTube sometimes skips history API)
-  let lastUrl = location.href;
-  new MutationObserver(() => {
-    if (location.href !== lastUrl) { lastUrl = location.href; onNavigate(); }
-  }).observe(document.documentElement, { childList: true, subtree: true });
+  document.addEventListener("yt-navigate-finish", onNavigate);
+  document.addEventListener("yt-page-data-updated", () => {
+    if (location.href !== lastUrl) onNavigate();
+  });
+  setInterval(() => {
+    if (location.href !== lastUrl) onNavigate();
+  }, 500);
 
-  // Initial check (delayed enough for DOM to be ready)
-  setTimeout(checkCurrentPage, 1500);
+  // ─── Boot ──────────────────────────────────────────────────
+  getSettings().then(s => {
+    if (s.youtubeFilterEnabled !== false && !isBrowsingAllowed(s)) startShortsObserver();
+  });
 
-  // Seed the expiry timer in case we're already inside an unlock window
+  if (document.body) {
+    setTimeout(checkCurrentPage, 800);
+  } else {
+    document.addEventListener("DOMContentLoaded", () => setTimeout(checkCurrentPage, 800), { once: true });
+  }
+
   chrome.storage.local.get("unlockedUntil", ({ unlockedUntil }) => {
     scheduleExpiryCheck(unlockedUntil);
   });
 
 })();
-

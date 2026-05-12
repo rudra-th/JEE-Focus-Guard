@@ -49,11 +49,16 @@ document.addEventListener("DOMContentLoaded", async () => {
 // ─── Load Question ─────────────────────────────────────────────
 async function loadQuestion() {
   answered = false;
+  currentQuestion = null;
   document.getElementById("loadingState").style.display = "block";
   document.getElementById("questionCard").style.display = "none";
   document.getElementById("resultCard").className = "result-card";
   document.getElementById("solutionBox").className = "solution-box";
-  document.getElementById("actionButtons").style.display = "none";
+  document.querySelector(".question-images")?.remove();
+  document.querySelector(".solution-images")?.remove();
+  const actionButtons = document.getElementById("actionButtons");
+  actionButtons.style.display = "none";
+  actionButtons.innerHTML = "";
 
   try {
     const response = await sendMessage({ action: "getQuestion" });
@@ -79,16 +84,25 @@ function renderQuestion(q) {
     q.difficulty && `<span class="q-tag difficulty">${esc(q.difficulty)}</span>`
   ].filter(Boolean).join("");
 
-  document.getElementById("qText").textContent = q.question;
+  document.getElementById("qText").textContent = cleanQuestionText(q.question);
+  document.querySelector(".question-images")?.remove();
+  renderImages(q.questionImages, "question-images", document.getElementById("qText"));
 
   const list = document.getElementById("optionsList");
   list.innerHTML = "";
+
+  if (q.type === "integer") {
+    renderIntegerAnswer(list);
+    scheduleMathRender();
+    return;
+  }
+
   const letters = ["A","B","C","D"];
   (q.options || []).slice(0, 4).forEach((opt, idx) => {
     const btn = document.createElement("button");
     btn.className = "option-btn";
     btn.innerHTML = `<span class="option-letter">${letters[idx]}</span><span class="option-text"></span>`;
-    btn.querySelector(".option-text").textContent = opt;
+    btn.querySelector(".option-text").textContent = cleanOptionText(opt);
     btn.addEventListener("click", () => handleAnswer(idx));
     list.appendChild(btn);
   });
@@ -96,19 +110,67 @@ function renderQuestion(q) {
   scheduleMathRender();
 }
 
+function renderIntegerAnswer(container) {
+  const wrap = document.createElement("div");
+  wrap.className = "integer-answer";
+  wrap.innerHTML = `
+    <input class="integer-input" id="integerAnswer" type="text" inputmode="decimal" autocomplete="off" placeholder="Enter numerical answer">
+    <button class="btn btn-unlock" id="integerSubmit">Submit</button>
+  `;
+  container.appendChild(wrap);
+
+  const input = wrap.querySelector("#integerAnswer");
+  const submit = wrap.querySelector("#integerSubmit");
+  const submitAnswer = () => handleAnswer(input.value.trim());
+  submit.addEventListener("click", submitAnswer);
+  input.addEventListener("keydown", e => {
+    if (e.key === "Enter") submitAnswer();
+  });
+  setTimeout(() => input.focus(), 50);
+}
+
+function renderImages(images, className, anchor) {
+  if (!Array.isArray(images) || images.length === 0 || !anchor) return;
+  const wrap = document.createElement("div");
+  wrap.className = className;
+  images.slice(0, 3).forEach(image => {
+    if (!image?.src) return;
+    if (!/^https?:\/\//i.test(image.src)) return;
+    const img = document.createElement("img");
+    img.src = image.src;
+    img.alt = image.alt || "";
+    img.loading = "lazy";
+    wrap.appendChild(img);
+  });
+  if (wrap.children.length > 0) anchor.insertAdjacentElement("afterend", wrap);
+}
+
 // ─── Handle Answer ──────────────────────────────────────────────
 async function handleAnswer(selectedIdx) {
   if (answered) return;
+  if (currentQuestion?.type === "integer" && !String(selectedIdx).trim()) return;
   answered = true;
 
-  const correctIdx = getCorrectIndex();
-  const isCorrect = selectedIdx === correctIdx;
+  const isInteger = currentQuestion?.type === "integer";
+  const correctIdx = isInteger ? -1 : getCorrectIndex();
+  const isCorrect = isInteger
+    ? answersMatch(selectedIdx, getCorrectAnswer())
+    : selectedIdx === correctIdx;
 
-  document.querySelectorAll(".option-btn").forEach((btn, idx) => {
-    btn.classList.add("disabled");
-    if (idx === correctIdx) btn.classList.add("correct");
-    if (idx === selectedIdx && !isCorrect) btn.classList.add("wrong");
-  });
+  if (isInteger) {
+    const wrap = document.querySelector(".integer-answer");
+    const input = document.getElementById("integerAnswer");
+    const submit = document.getElementById("integerSubmit");
+    wrap?.classList.add(isCorrect ? "correct" : "wrong");
+    if (input) input.disabled = true;
+    if (submit) submit.disabled = true;
+  } else {
+    document.querySelectorAll(".option-btn").forEach((btn, idx) => {
+      btn.classList.add("disabled");
+      if (idx === correctIdx) btn.classList.add("correct");
+      if (idx === selectedIdx && !isCorrect) btn.classList.add("wrong");
+    });
+  }
 
   await sendMessage({ action: "recordAnswer", correct: isCorrect });
 
@@ -153,11 +215,45 @@ function getCorrectIndex() {
   return 0;
 }
 
+function getCorrectAnswer() {
+  if (!currentQuestion) return "";
+  return currentQuestion.correctAnswer ?? currentQuestion.answer ?? currentQuestion.correct ?? "";
+}
+
+function answersMatch(given, expected) {
+  const a = normalizeAnswer(given);
+  const b = normalizeAnswer(expected);
+  if (a === b) return true;
+
+  const na = Number(a);
+  const nb = Number(b);
+  return Number.isFinite(na) && Number.isFinite(nb) && Math.abs(na - nb) < 1e-9;
+}
+
+function normalizeAnswer(value) {
+  return String(value ?? "")
+    .trim()
+    .replace(/^\+/, "")
+    .replace(/\.0+$/, "")
+    .toLowerCase();
+}
+
+function getDisplayAnswer() {
+  if (!currentQuestion) return "";
+  if (currentQuestion.type === "integer") return String(getCorrectAnswer());
+  const idx = getCorrectIndex();
+  return currentQuestion.options?.[idx] || "";
+}
+
 // ─── Solution ────────────────────────────────────────────────────
 function showSolution() {
-  if (!currentQuestion?.solution) return;
+  const fallback = getDisplayAnswer() ? `Correct answer: ${getDisplayAnswer()}` : "";
+  const text = currentQuestion?.solution || fallback;
+  if (!text) return;
   const box = document.getElementById("solutionBox");
-  document.getElementById("solutionText").textContent = currentQuestion.solution;
+  document.getElementById("solutionText").textContent = cleanCommonText(text);
+  document.querySelector(".solution-images")?.remove();
+  renderImages(currentQuestion.solutionImages, "solution-images", document.getElementById("solutionText"));
   box.className = "solution-box show";
 }
 
@@ -183,7 +279,7 @@ function showActions(unlocked) {
       const btn = document.createElement("button");
       btn.className = "btn btn-unlock";
       btn.innerHTML = "▶ Back to YouTube";
-      btn.addEventListener("click", () => { window.location.href = "https://www.youtube.com"; });
+      btn.addEventListener("click", () => { window.location.href = getYouTubeReturnUrl(); });
       container.appendChild(btn);
     }
   }
@@ -209,6 +305,7 @@ function showAlreadyUnlocked(remaining, source) {
 
   const container = document.getElementById("actionButtons");
   container.style.display = "flex";
+  container.innerHTML = "";
 
   if (source && source !== "popup" && source !== "youtube" && source !== "youtube-shorts"
       && ALLOWED_DOMAINS.includes(source)) {
@@ -222,7 +319,7 @@ function showAlreadyUnlocked(remaining, source) {
     const btn = document.createElement("button");
     btn.className = "btn btn-unlock";
     btn.innerHTML = "▶ Back to YouTube";
-    btn.addEventListener("click", () => { window.location.href = "https://www.youtube.com"; });
+    btn.addEventListener("click", () => { window.location.href = getYouTubeReturnUrl(); });
     container.appendChild(btn);
   }
 
@@ -247,6 +344,7 @@ function showError(message) {
 
   const container = document.getElementById("actionButtons");
   container.style.display = "flex";
+  container.innerHTML = "";
   const btn = document.createElement("button");
   btn.className = "btn btn-retry";
   btn.innerHTML = "🔄 Retry";
@@ -273,6 +371,64 @@ function esc(str) {
   return String(str)
     .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
     .replace(/"/g,"&quot;").replace(/'/g,"&#39;");
+}
+
+function cleanQuestionText(value) {
+  return cleanCommonText(value)
+    .replace(/(?:\$\$|\\\[)?\s*\\begin\{align\*?\}\s*(?:\$\$|\\\])?\s*$/i, "")
+    .trim();
+}
+
+function cleanOptionText(value) {
+  let text = cleanCommonText(value)
+    .replace(/\\begin\{(?:align|aligned)\*?\}/gi, "")
+    .replace(/\\end\{(?:align|aligned)\*?\}/gi, "")
+    .replace(/&/g, " ")
+    .replace(/\\quad|\\qquad/gi, " ")
+    .replace(/\\\\/g, " ")
+    .replace(/^\\(?![a-zA-Z([\]])/, "")
+    .replace(/\s*\\$/, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (/\\[a-zA-Z]+|[_^]\{|\{.*\}/.test(text) && !/\$\$|\\\(|\\\[|\$[^$]+\$/.test(text)) {
+    text = `\\(${text}\\)`;
+  }
+  return text;
+}
+
+function cleanCommonText(value) {
+  return normalizeEmbeddedDisplayMath(String(value || "")
+    .replace(/\r\n?/g, "\n")
+    .replace(/\u00a0/g, " ")
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n[ \t]+/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .replace(/\b([BEIVq])\?/g, "\\($1_0\\)")
+    .replace(/\?=\?/g, "\\rightleftharpoons"))
+    .trim();
+}
+
+function normalizeEmbeddedDisplayMath(text) {
+  return text.split("\n").map(line => {
+    if (!line.includes("$$")) return line;
+    const outsideMath = line.replace(/\$\$[\s\S]*?\$\$/g, "").trim();
+    if (!outsideMath) return line;
+    return line.replace(/\$\$([\s\S]*?)\$\$/g, (_, math) => `\\(${math.trim()}\\)`);
+  }).join("\n");
+}
+
+function getYouTubeReturnUrl() {
+  const params = new URLSearchParams(window.location.search);
+  const raw = params.get("returnUrl") || "";
+
+  try {
+    const url = new URL(raw);
+    const isYouTube = url.hostname === "youtube.com" || url.hostname.endsWith(".youtube.com");
+    if (url.protocol === "https:" && isYouTube) return url.href;
+  } catch (e) { /* fall back below */ }
+
+  return "https://www.youtube.com/results?search_query=jee";
 }
 
 function sendMessage(msg) {

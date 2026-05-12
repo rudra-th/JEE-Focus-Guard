@@ -28,13 +28,34 @@ const CLASS_11_CHAPTERS = {
     "Complex Numbers and Quadratic Equations","Quadratic Equations",
     "Linear Inequalities","Permutations and Combinations",
     "Binomial Theorem","Sequences and Series","Straight Lines",
-    "Conic Sections","Introduction to Three Dimensional Geometry",
-    "Limits and Derivatives","Mathematical Reasoning",
-    "Statistics","Probability","Matrices","Determinants"
+    "Straight Lines and Circles","Conic Sections",
+    "Introduction to Three Dimensional Geometry","Three Dimensional Geometry",
+    "Limits and Derivatives","Limits, Continuity and Differentiability",
+    "Differential Equations","Integral Calculus","Functions and Relations",
+    "Mathematical Reasoning","Statistics","Probability","Matrices",
+    "Determinants","Matrices and Determinants","Vector Algebra",
+    "Mathematics - Mixed"
   ]
 };
 
 let selectedChapters = new Set();
+let chapterGroups = CLASS_11_CHAPTERS;
+
+function normalizeName(value, fallback = "General") {
+  return String(value || fallback).replace(/\s+/g, " ").trim() || fallback;
+}
+
+function chapterKey(subject, chapter) {
+  return `${normalizeName(subject)}::${normalizeName(chapter)}`;
+}
+
+function isChapterSelected(subject, chapter) {
+  const subj = normalizeName(subject);
+  const ch = normalizeName(chapter);
+  return selectedChapters.has(chapterKey(subj, ch))
+    || selectedChapters.has(ch)
+    || selectedChapters.has(subj);
+}
 
 document.addEventListener("DOMContentLoaded", async () => {
   await loadSettings();
@@ -46,9 +67,13 @@ document.addEventListener("DOMContentLoaded", async () => {
 async function loadSettings() {
   return new Promise(resolve => {
     chrome.storage.local.get(
-      ["selectedChapters","blockingEnabled","youtubeFilterEnabled","unlockMinutes"],
+      ["selectedChapters","blockingEnabled","youtubeFilterEnabled","unlockMinutes","questions"],
       data => {
         if (data.selectedChapters?.length > 0) selectedChapters = new Set(data.selectedChapters);
+        if (Array.isArray(data.questions) && data.questions.length > 0) {
+          chapterGroups = groupChaptersBySubject(data.questions);
+        }
+        selectedChapters = migrateStoredSelection(selectedChapters, chapterGroups);
 
         document.getElementById("toggleBlocking").checked  = data.blockingEnabled  !== false;
         document.getElementById("toggleYoutube").checked   = data.youtubeFilterEnabled !== false;
@@ -68,14 +93,35 @@ function minsLabel(m) {
   return `${m} minute${m !== 1 ? "s" : ""} per question`;
 }
 
+function groupChaptersBySubject(questions) {
+  const groups = {};
+  questions.forEach(q => {
+    const subject = normalizeName(q.subject);
+    const chapter = normalizeName(q.chapter);
+    if (!groups[subject]) groups[subject] = new Map();
+    const key = chapter.toLowerCase();
+    if (!groups[subject].has(key)) groups[subject].set(key, chapter);
+  });
+
+  return Object.fromEntries(
+    Object.entries(groups)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([subject, chapters]) => [
+        subject,
+        [...chapters.values()].sort((a, b) => a.localeCompare(b))
+      ])
+  );
+}
+
 function renderChapterList() {
   const container = document.getElementById("chapterList");
   container.innerHTML = "";
   const icons = { Physics:"⚡", Chemistry:"🧪", Mathematics:"📐" };
 
-  for (const [subj, chapters] of Object.entries(CLASS_11_CHAPTERS)) {
+  for (const [subj, chapters] of Object.entries(chapterGroups)) {
     const group = document.createElement("div");
     group.className = "subject-group";
+    group.dataset.subject = subj;
     group.innerHTML = `
       <div class="subject-header">
         ${icons[subj] || "📖"} ${subj}
@@ -87,14 +133,19 @@ function renderChapterList() {
 
     chapters.forEach(ch => {
       const item = document.createElement("label");
-      item.className = `chapter-item${selectedChapters.has(ch) ? " selected" : ""}`;
+      const key = chapterKey(subj, ch);
+      item.className = `chapter-item${isChapterSelected(subj, ch) ? " selected" : ""}`;
 
       const cb = document.createElement("input");
       cb.type = "checkbox";
-      cb.checked = selectedChapters.has(ch);
+      cb.checked = isChapterSelected(subj, ch);
       cb.addEventListener("change", () => {
-        if (cb.checked) { selectedChapters.add(ch); item.classList.add("selected"); }
-        else            { selectedChapters.delete(ch); item.classList.remove("selected"); }
+        if (cb.checked) { selectedChapters.add(key); item.classList.add("selected"); }
+        else            {
+          selectedChapters.delete(key);
+          selectedChapters.delete(ch);
+          item.classList.remove("selected");
+        }
       });
 
       const lbl = document.createElement("span");
@@ -108,6 +159,28 @@ function renderChapterList() {
     group.appendChild(grid);
     container.appendChild(group);
   }
+}
+
+function migrateStoredSelection(selection, groups) {
+  const migrated = new Set();
+  for (const selected of selection) {
+    const value = normalizeName(selected, "");
+    if (!value) continue;
+    if (value.includes("::")) {
+      migrated.add(value);
+      continue;
+    }
+    for (const [subject, chapters] of Object.entries(groups)) {
+      if (value === subject) {
+        chapters.forEach(chapter => migrated.add(chapterKey(subject, chapter)));
+      } else {
+        chapters
+          .filter(chapter => value === chapter)
+          .forEach(chapter => migrated.add(chapterKey(subject, chapter)));
+      }
+    }
+  }
+  return migrated;
 }
 
 function setupEventListeners() {
@@ -136,20 +209,20 @@ function setupEventListeners() {
 
   // Toggles
   document.getElementById("toggleBlocking").addEventListener("change", async e => {
-    await chrome.storage.local.set({ blockingEnabled: e.target.checked });
+    await sendMessage({ action: "setBlockingEnabled", enabled: e.target.checked });
     showToast(e.target.checked ? "🛡️ Blocking enabled" : "⚠️ Blocking disabled");
   });
   document.getElementById("toggleYoutube").addEventListener("change", async e => {
-    await chrome.storage.local.set({ youtubeFilterEnabled: e.target.checked });
+    await sendMessage({ action: "setYoutubeFilterEnabled", enabled: e.target.checked });
     showToast(e.target.checked ? "📺 YouTube filter on" : "📺 YouTube filter off");
   });
 
   // DB buttons
   document.getElementById("btnRefetch").addEventListener("click", async () => {
-    setDbStatus("loading", "Fetching from GitHub…");
+    setDbStatus("loading", "Reloading local question bank...");
     chrome.runtime.sendMessage({ action: "refetchQuestions" }, async () => {
       await updateDbStatus();
-      showToast("✅ Question bank refreshed!");
+      showToast("Question bank reloaded!");
     });
   });
   document.getElementById("btnLoadFallback").addEventListener("click", async () => {
@@ -165,6 +238,10 @@ function setupEventListeners() {
     await chrome.storage.local.set({ totalSolved: 0, totalCorrect: 0, streak: 0 });
     showToast("📊 Stats reset!");
   });
+  document.getElementById("btnResetQuestionHistory").addEventListener("click", async () => {
+    await sendMessage({ action: "resetQuestionHistory" });
+    showToast("Question history reset!");
+  });
   document.getElementById("btnResetAll").addEventListener("click", async () => {
     if (confirm("Reset ALL data (questions + stats)? This cannot be undone.")) {
       await chrome.storage.local.clear();
@@ -176,16 +253,26 @@ function setupEventListeners() {
 
 function selectBySubject(subject, select, exclusive = false) {
   if (exclusive) selectedChapters.clear();
-  for (const [subj, chapters] of Object.entries(CLASS_11_CHAPTERS)) {
+  if (subject === null && select === false) selectedChapters.clear();
+  for (const [subj, chapters] of Object.entries(chapterGroups)) {
     if (subject === null || subj === subject) {
-      chapters.forEach(ch => select ? selectedChapters.add(ch) : selectedChapters.delete(ch));
+      chapters.forEach(ch => {
+        const key = chapterKey(subj, ch);
+        if (select) selectedChapters.add(key);
+        else {
+          selectedChapters.delete(key);
+          selectedChapters.delete(ch);
+        }
+      });
     }
   }
   document.querySelectorAll(".chapter-item").forEach(item => {
     const cb = item.querySelector("input[type='checkbox']");
     const name = item.querySelector("span").textContent;
-    cb.checked = selectedChapters.has(name);
-    item.classList.toggle("selected", selectedChapters.has(name));
+    const subject = item.closest(".subject-group")?.dataset.subject || "";
+    const checked = isChapterSelected(subject, name);
+    cb.checked = checked;
+    item.classList.toggle("selected", checked);
   });
 }
 
@@ -203,7 +290,7 @@ async function updateDbStatus() {
         const date = data.lastFetched ? new Date(data.lastFetched).toLocaleString() : "Unknown";
         setDbStatus("ok", `${data.questionCount || 0} questions loaded · Last fetched: ${date}`);
       } else {
-        setDbStatus("error", "No questions loaded. Click 'Re-fetch' or 'Load Built-in'.");
+        setDbStatus("error", "No questions loaded. Click 'Reload Local Bank' or 'Load Built-in'.");
       }
       resolve();
     });
@@ -215,4 +302,13 @@ function showToast(message) {
   toast.textContent = message;
   toast.classList.add("show");
   setTimeout(() => toast.classList.remove("show"), 2500);
+}
+
+function sendMessage(message) {
+  return new Promise((resolve, reject) => {
+    chrome.runtime.sendMessage(message, response => {
+      if (chrome.runtime.lastError) reject(new Error(chrome.runtime.lastError.message));
+      else resolve(response);
+    });
+  });
 }

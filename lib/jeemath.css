@@ -57,6 +57,13 @@ sup.msup, sub.msub {
 .mtext { font-style: normal; font-family: system-ui, sans-serif; }
 .mg    { font-style: italic; }
 .msp   { display: inline-block; width: 0.2em; }
+.mdecor {
+  display: inline-block;
+  font-style: italic;
+  line-height: 1;
+  min-width: 0.7em;
+  text-align: center;
+}
 
 /* Matrix/cases */
 .mmatrix {
@@ -67,6 +74,8 @@ sup.msup, sub.msub {
 }
 .mtd { padding: 2px 4px; text-align: center; }
 .menv { display: inline-flex; align-items: center; vertical-align: middle; gap: 2px; }
+.malign .mtd { text-align: left; }
+.math-display .menv { max-width: 100%; overflow-x: auto; }
 
 /* Limits operator */
 .mlim-op {
