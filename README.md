@@ -10,7 +10,7 @@ When you visit a blocked site, you're redirected to a question page with a genui
 
 - **Site blocking** — Instagram, Facebook, Twitter/X, Reddit, TikTok, Snapchat, Netflix, Twitch, Discord, and YouTube Shorts blocked via `declarativeNetRequest`
 - **Smart YouTube filtering** — blocks Shorts (URL + SPA modal), homepage feed, trending, channel pages, and non-educational `/watch` videos by analyzing titles against JEE keywords and known educational channels
-- **1000+ real JEE questions** — sourced from JEE Main / AIEEE (2003–2024) spanning Physics, Chemistry, and Mathematics, with solutions and images
+- **11,500+ real JEE questions** — sourced from JEE Main / AIEEE (2003–2024) spanning Physics, Chemistry, and Mathematics, with solutions and images
 - **Custom LaTeX renderer** (`lib/jeemath.js`) — zero-dependency math renderer for fractions, integrals, matrices, Greek letters, and more
 - **Chapter/subject filter** — choose which topics questions come from
 - **Statistics tracking** — total solved, accuracy percentage, streak
